@@ -12,12 +12,14 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(sf)
-world_shapes <- st_read('world_country_shapes.geojson')
+library(here)
+# world_shapes <- st_read('world_country_shapes.geojson')
+world_shapes <- st_read(here('Data/World_Countries/World_Countries_Generalized.shp'))
 ```
 
 ```{r}
 library(tidyverse)
-gender_inequity_data <- read_csv('HDR_composite_indices.csv')
+gender_inequity_data <- st_read(here('Data/HDR25_Composite_indices_complete_time_series.csv'))
 ```
 
 Add correct country code to inequality data
@@ -58,6 +60,8 @@ joined_data <- left_join(
 needed_columns = c("ISO", "COUNTRY", "gii_2010", "gii_2019", "geometry")
 final_data <- mutate(
   joined_data[,needed_columns],
+  gii_2010 = as.numeric(gii_2010),
+  gii_2019 = as.numeric(gii_2019),
   difference_in_inequality=gii_2019-gii_2010
 )
 ```
@@ -78,5 +82,39 @@ tm_shape(final_data) +
               fill.legend = tm_legend(title = "Difference in Inequality", 
                                       size = 0.8))
 ```
+__Alright now lets make a different map shall we!__
 
+What happens if we try to subset the data so that it just shows Papua New Guinea, Australia, East Timor, Malaysia, New Zeland, Brunei, and Solomon Islands
+
+```{r}
+print('subset data')
+
+#view(final_data)
+
+countries_list <- c('Australia', 'New Zealand', 'Papua New Guinea', 'Timor-Leste', 'Indonesia', 'Malaysia') 
+new_final_data <- filter(final_data, COUNTRY %in% countries_list) %>%
+  mutate(
+    Change_level = case_when(
+      difference_in_inequality < -0.07 ~ "High_Gen_Eq_Increase",
+      difference_in_inequality > -0.07 & difference_in_inequality < 0 ~ "General_Gen_Eq_Increase",
+      difference_in_inequality > 0 ~ "High_Gen_Eq_Decrease"
+    )
+  )
+  
+view(new_final_data)
+```
+
+```{r}
+tmap_mode("view")  # or "view" for interactive
+
+tmap3 <- tm_shape(new_final_data) +
+  tm_polygons("Change_level", 
+              palette = c("High_Gen_Eq_Increase" = "#FF69B4",
+                          "General_Gen_Eq_Increase" = "darkgreen",
+                          "High_Gen_Eq_Decrease" = "red"),
+              title = "Change in Gender Equality") +
+  tm_layout(legend.outside = TRUE)
+
+tmap3
+```
 
